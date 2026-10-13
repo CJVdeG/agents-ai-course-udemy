@@ -1,0 +1,222 @@
+# Vendored copy of ~/Secrets/KnowledgeVault/security/gitleaks.toml (security/sync-gitleaks-ci.sh). Do not edit here.
+# Shared gitleaks config for every repo on this machine (PC + laptop).
+# Default gitleaks rules + our custom rules for the shapes the old token guard missed
+# (AMP leak 2026-10-09). Test: security/test-gitleaks.sh (must stay all-PASS).
+# Used by: security/lib/check-token-leak.sh (pre-commit), pre-push hooks, CI, deploy scripts.
+
+title = "agency fleet gitleaks config"
+
+[extend]
+useDefault = true
+
+# ---------- custom rules ----------
+
+[[rules]]
+id = "env-password-assignment"
+description = "Assignment to an UPPER_CASE *PASSWORD*/*PASSWD*/*PWD* variable (env, shell, yaml, code)"
+regex = '''\b[A-Z0-9_]*(?:PASSWORD|PASSWD|_PWD)[A-Z0-9_]*["']?[ \t]*[:=][ \t]*["'`]?([^\s"'`,;]{6,})'''
+secretGroup = 1
+keywords = ["password", "passwd", "pwd"]
+
+[[rules]]
+id = "password-literal"
+description = "Any-case *password* key assigned a quoted string literal (JS/TS/Python/JSON object or variable)"
+regex = '''(?i)(?:^|[\s{,(\["'])[a-z0-9_]*(?:password|passwd|pwd)[a-z0-9_]*["']?[ \t]*[:=][ \t]*["'`]([^"'`\s]{6,})["'`]'''
+secretGroup = 1
+keywords = ["password", "passwd", "pwd"]
+
+[[rules]]
+id = "password-config"
+description = "Any-case *password* key with an unquoted value in config files (yaml, ini, toml, properties, .env)"
+path = '''(?i)(?:\.(?:ya?ml|ini|toml|properties|conf|cfg|env)|(?:^|/)\.env[^/]*|\.dev\.vars)$'''
+regex = '''(?i)\b[a-z0-9_.\-]*(?:password|passwd|pwd)[a-z0-9_.\-]*["']?[ \t]*[:=][ \t]*["']?([^\s"',;]{6,})'''
+secretGroup = 1
+keywords = ["password", "passwd", "pwd"]
+
+[[rules]]
+id = "env-secret-assignment"
+description = "Assignment to an UPPER_CASE *SECRET*/*TOKEN*/*KEY* variable with a non-placeholder value"
+regex = '''\b[A-Z][A-Z0-9_]*(?:SECRET|TOKEN|API_KEY|APIKEY|ACCESS_KEY_ID|ACCESS_KEY|PRIVATE_KEY|SERVICE_ROLE_KEY|_KEY)\b["']?[ \t]*[:=][ \t]*["'`]?([A-Za-z0-9_\-+/=.$^@!%*~]{16,})'''
+secretGroup = 1
+entropy = 3.0
+keywords = ["secret", "token", "key"]
+
+[[rules]]
+id = "markdown-password"
+description = "Password written in docs, e.g. **Password:** `...` or Wachtwoord: ... (value must contain a digit or symbol)"
+path = '''(?i)\.(?:md|mdx|markdown|txt|rst|adoc)$'''
+regex = '''(?i)\*{0,2}(?:db |database |postgres )?(?:password|passwd|wachtwoord)\*{0,2}[ \t]*:[ \t]*\*{0,2}[ \t]*`?([^\s`|"'<>\[\]\\]{7,}[0-9!@#$%^&*+=?~][^\s`|"'<>\[\]\\]*|[^\s`|"'<>\[\]\\]*[0-9!@#$%^&*+=?~][^\s`|"'<>\[\]\\]{7,})`?'''
+secretGroup = 1
+keywords = ["password", "passwd", "wachtwoord"]
+
+[[rules]]
+id = "postgres-url-password"
+description = "Postgres connection string with a password (any characters, incl. $ ^ @)"
+regex = '''postgres(?:ql)?://[^:\s/"'<>]+:([^\s"'<>\[\]\\]+)@[A-Za-z0-9.\-]+(?::\d+)?(?:/|\b)'''
+secretGroup = 1
+keywords = ["postgres://", "postgresql://"]
+
+[[rules]]
+id = "pgpassword-inline"
+description = "PGPASSWORD set inline or exported"
+regex = '''PGPASSWORD[ \t]*=[ \t]*["']?([^\s"']{6,})'''
+secretGroup = 1
+keywords = ["pgpassword"]
+
+[[rules]]
+id = "anthropic-key-any"
+description = "Anthropic key of any generation (sk-ant-<kind><nn>-...); broader than the default rule, which needs the full 93+AA format"
+regex = '''\b(sk-ant-[a-z]+[0-9]{2}-[A-Za-z0-9_\-]{20,})'''
+keywords = ["sk-ant-"]
+
+[[rules]]
+id = "supabase-secret-key"
+description = "Supabase secret key (new format)"
+regex = '''\b(sb_secret_[A-Za-z0-9_\-]{20,})'''
+keywords = ["sb_secret_"]
+
+[[rules]]
+id = "supabase-access-token"
+description = "Supabase personal access token"
+regex = '''\b(sbp_[a-f0-9]{40,})'''
+keywords = ["sbp_"]
+
+[[rules]]
+id = "nuxt-seo-pro-key"
+description = "Nuxt SEO Pro key"
+regex = '''\b(nsp_[A-Za-z0-9]{20,})'''
+keywords = ["nsp_"]
+
+[[rules]]
+id = "serpapi-key"
+description = "SerpAPI key in a URL or assignment"
+regex = '''(?i)serpapi[^\n]{0,40}?([a-f0-9]{64})'''
+secretGroup = 1
+keywords = ["serpapi"]
+
+[[rules]]
+id = "trello-token"
+description = "Trello token"
+regex = '''\b(ATTA[A-Za-z0-9]{40,})'''
+keywords = ["atta"]
+
+[[rules]]
+id = "cron-secret-header"
+description = "x-cron-secret header value"
+regex = '''(?i)x-cron-secret["']?[ \t]*[:=][ \t]*["']?([A-Za-z0-9_\-]{16,})'''
+secretGroup = 1
+keywords = ["cron-secret"]
+
+[[rules]]
+id = "bearer-header"
+description = "Authorization: Bearer with a literal value"
+regex = '''(?i)bearer[ \t]+([A-Za-z0-9._\-]{30,})'''
+secretGroup = 1
+entropy = 3.5
+keywords = ["bearer"]
+
+# ---------- allowlists ----------
+
+[[allowlists]]
+description = "Placeholders and variable references, matched on the secret itself"
+regexTarget = "secret"
+regexes = [
+  '''(?i)^(?:your|my|the)[_\-]''',
+  '''(?i)(?:your|_HERE|xxxxx|changeme|change_me|placeholder|example|dummy|redacted|replace|actualtoken|\*\*\*)''',
+  '''\.\.\.|…''',
+  '''^<[^>]*>$''',
+  '''^\[[^\]]*\]$''',
+  '''^\$\{?[A-Za-z_][A-Za-z0-9_]*\}?[,;)]*$''',
+  '''^\$\(''',
+  '''^(?:process\.env|import\.meta\.env|env\.|Deno\.env|os\.environ|useRuntimeConfig)''',
+  '''^%[A-Z_]+%$''',
+  '''^\{\{.*\}\}$''',
+]
+
+[[allowlists]]
+description = "Generated / vendored paths"
+paths = [
+  '''(?:^|/)node_modules/''',
+  '''(?:^|/)(?:pnpm-lock\.yaml|package-lock\.json|yarn\.lock|bun\.lockb)$''',
+  '''(?:^|/)\.git/''',
+  '''\.(?:png|jpe?g|gif|webp|avif|ico|woff2?|ttf|otf|pdf|mp4|zip|gz)$''',
+]
+
+[[allowlists]]
+description = "Public-by-design values, matched on the secret: Supabase publishable keys + anon-role JWTs, Stripe publishable keys"
+regexTarget = "secret"
+regexes = [
+  '''^sb_publishable_''',
+  '''^pk_(?:test|live)_''',
+  # anon-role Supabase JWT: base64 of "role":"anon" at each of the 3 alignments (a service_role JWT never matches)
+  '''^eyJ[A-Za-z0-9_\-]*\.[A-Za-z0-9_\-]*(?:InJvbGUiOiJhbm9|Jyb2xlIjoiYW5|icm9sZSI6ImFub24)''',
+]
+
+[[allowlists]]
+description = "Public-by-design values, recognised by the name on the line: Ahrefs data-key, Turnstile SITE key, Mixpanel project token, IndexNow key"
+targetRules = ["generic-api-key", "env-secret-assignment"]
+regexTarget = "line"
+regexes = [
+  '''(?i)\bdata-key\b|ahrefs[_ ]?(?:web analytics )?data[_-]key''',
+  '''(?i)turnstile_site_key''',
+  '''(?i)mixpanel[a-z_]*token''',
+  '''(?i)\bindexnow_key\b''',
+  # video ids in example URLs on AMP pages (?viewkey=ph...), public content ids
+  '''(?i)[?&]viewkey=''',
+]
+
+[[allowlists]]
+description = "Identifier-shaped values (storage/cache key names, slugs, constant references), not credentials"
+targetRules = ["generic-api-key", "env-secret-assignment"]
+regexTarget = "secret"
+regexes = [
+  # snake/kebab/colon identifiers made of letter words (each may end in <=2 digits, e.g. 'wf_ad_init_v1'), e.g. 'gtm_consent'.
+  # Digits inside a segment never match, so prefix_<hex> secrets such as whsec_... or wsk_... still fire.
+  '''^_*[a-z]{2,}(?:[_\-:.][a-z]+[0-9]{0,2})+$''',
+  # a reference to another UPPER_SNAKE constant (needs an underscore, so AKIA-style ids never match)
+  '''^[A-Z]{2,}(?:_[A-Z]+[0-9]{0,2})+$''',
+  # dunder camelCase window flags, e.g. __wfSomeFlagName
+  '''^__[a-z]+(?:[A-Z][a-z]+)+$''',
+  # JS member expression, e.g. r2Attachments.length
+  '''^[a-z][A-Za-z0-9]*\.(?:length|value|id|key|keys|name|size)\b''',
+  # too short to be a real Stripe/OpenAI/Anthropic key (docs stubs: the sk_live_ prefix plus a few chars)
+  '''^sk[_\-](?:live_|test_|ant-)?[A-Za-z0-9]{1,16}$''',
+]
+
+[[allowlists]]
+description = "Password-rule values that are code, not passwords: function calls, regex fragments, well-known fixtures"
+targetRules = ["env-password-assignment", "password-literal", "password-config", "markdown-password", "pgpassword-inline", "postgres-url-password"]
+regexTarget = "secret"
+regexes = [
+  '''^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*)*\(''',
+  '''^\(''',
+  '''^\|''',
+  '''\[\^|\{\d+,\d*\}|\\[sdwS]|\(\?''',
+  # fixture / bad-example passwords: optional adjective prefix + "password"/"pass" (deliberately NOT "test...", so a
+  # real shared test-account password like Test<Word>123! keeps firing)
+  '''(?i)^['"]?(?:my|new|old|wrong|valid|invalid|short|different|diff|weak|strong|secure|correct|incorrect|example|sample|fake|mock|dummy)?[_\-]?(?:password|passw0rd|pass|pwd)[A-Za-z0-9_!@#$%^&*\-]*['"]?[,;]?$''',
+  # UPPER_SNAKE constant as value, e.g. supabase-js "PASSWORD_RECOVERY":"SIGNED_IN" (event names, not passwords)
+  '''^[A-Z]{2,}(?:_[A-Z]+)+$''',
+  # i18n label equal to the field name
+  '''^(?:Password|Passwords|Wachtwoord|Passwort)$''',
+  # connection-string placeholders: postgresql://user:password@host
+  '''^(?:password|pass|passwd|pwd|secret|postgres|PASSWORD|PASS)$''',
+  '''^['"]?(?:admin|letmein|qwerty|changeme|secret)\d{0,4}!?['"]?[,;]?$''',
+]
+
+[[allowlists]]
+description = "Config keys that name an env var instead of holding a password (app_password_env: SOME_VAR)"
+targetRules = ["password-config", "env-password-assignment"]
+regexTarget = "match"
+regexes = ['''(?i)_env["']?[ \t]*[:=]''']
+
+[[allowlists]]
+description = "PageSpeed raw JSON (crawl output of public pages: Shopify visit tokens etc.)"
+targetRules = ["generic-api-key"]
+paths = ['''(?:^|/)psi-raw/[^/]+\.json$''']
+
+[[allowlists]]
+description = "Odoo attachment share token inside a product-image URL (public by design)"
+targetRules = ["generic-api-key"]
+regexTarget = "line"
+regexes = ['''/web/(?:image|content)/[^\s"]*\?access_token=''']

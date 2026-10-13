@@ -1,0 +1,53 @@
+# Secret scan on GitHub (vendored by ~/Secrets/KnowledgeVault/security/sync-gitleaks-ci.sh; do not edit here,
+# edit security/ci/gitleaks.yml in the KnowledgeVault and re-run the sync).
+# Scans only the commits a push or pull request adds, like the local pre-push hook: the history before
+# 2026-10-13 holds secrets that were rotated, so a full-history scan would always fail.
+name: gitleaks
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+
+      - name: Install gitleaks (pinned, checksum-verified)
+        env:
+          GITLEAKS_VERSION: 8.30.1
+        run: |
+          base="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}"
+          tarball="gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          curl -sSfLO "$base/$tarball"
+          curl -sSfLO "$base/gitleaks_${GITLEAKS_VERSION}_checksums.txt"
+          grep " $tarball\$" "gitleaks_${GITLEAKS_VERSION}_checksums.txt" | sha256sum -c -
+          tar -xzf "$tarball" gitleaks
+          sudo install -m 755 gitleaks /usr/local/bin/gitleaks
+
+      - name: Scan the new commits
+        env:
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.sha }}
+        run: |
+          zero=0000000000000000000000000000000000000000
+          if [ "$EVENT" = "pull_request" ]; then
+            range="$PR_BASE..$HEAD_SHA"
+          elif [ -z "$BEFORE" ] || [ "$BEFORE" = "$zero" ] || ! git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then
+            # New branch or rewritten history: scan what the default branch does not have yet.
+            default="$(git remote show origin | sed -n 's/.*HEAD branch: //p')"
+            range="$HEAD_SHA --not origin/${default:-main}"
+          else
+            range="$BEFORE..$HEAD_SHA"
+          fi
+          echo "Scanning: $range"
+          gitleaks git --log-opts="$range" --config .gitleaks.toml --redact --no-banner --exit-code 1 .
