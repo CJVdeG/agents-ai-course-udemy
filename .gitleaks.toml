@@ -153,6 +153,16 @@ regexes = [
 ]
 
 [[allowlists]]
+description = "SOPS ciphertext in the ~/Secrets store (2026-10-13), matched on the secret: ENC[] values (incl. sops_mac), age recipients (public keys), age-armored data keys"
+regexTarget = "secret"
+regexes = [
+  # the password rules stop at ',' so the captured secret can be just "ENC[AES256_GCM"
+  '''^ENC\[AES256_GCM(?:,|\]?$)''',
+  '''^age1[02-9ac-hj-np-z]{58}$''',
+  '''^-----BEGIN AGE ENCRYPTED FILE-----''',
+]
+
+[[allowlists]]
 description = "Public-by-design values, recognised by the name on the line: Ahrefs data-key, Turnstile SITE key, Mixpanel project token, IndexNow key"
 targetRules = ["generic-api-key", "env-secret-assignment"]
 regexTarget = "line"
