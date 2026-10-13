@@ -156,7 +156,7 @@ regexes = [
 description = "SOPS ciphertext (~/Secrets store, 2026-10-13): a whole dotenv or JSON line holding exactly one complete ENC[AES256_GCM,data,iv,tag,type] token. A hand-forged ENC[AES256_GCM,<plaintext>] does not match. No `paths` here on purpose: in this gitleaks version a global allowlist with paths ignores `condition` and would allowlist whole files."
 regexTarget = "line"
 regexes = [
-  '''^[^=#]*=ENC\[AES256_GCM,data:[A-Za-z0-9+/]*={0,2},iv:[A-Za-z0-9+/]{43}=,tag:[A-Za-z0-9+/]{22}==,type:(?:str|int|float|bool|bytes|comment)\]\r?$''',
+  '''^\s*(?:export[ \t]+)?(?:[A-Z][A-Z0-9_]{0,63}|[a-z][a-z0-9_]{0,63})=ENC\[AES256_GCM,data:[A-Za-z0-9+/]*={0,2},iv:[A-Za-z0-9+/]{43}=,tag:[A-Za-z0-9+/]{22}==,type:(?:str|int|float|bool|bytes|comment)\]\r?$''',
   '''^\s*"[^"]*":\s*"ENC\[AES256_GCM,data:[A-Za-z0-9+/]*={0,2},iv:[A-Za-z0-9+/]{43}=,tag:[A-Za-z0-9+/]{22}==,type:(?:str|int|float|bool|bytes|comment)\]",?\r?$''',
 ]
 
