@@ -8,6 +8,13 @@ on:
   push:
   pull_request:
 
+# Cancel superseded runs only for pull requests (their range is base..head, so the newest run
+# still covers everything). A push run scans only the commits that push added (before..sha);
+# cancelling it would leave those commits unscanned on GitHub (review 2026-11-08).
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 

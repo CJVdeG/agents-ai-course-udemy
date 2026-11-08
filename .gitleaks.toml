@@ -232,6 +232,11 @@ targetRules = ["generic-api-key"]
 paths = ['''(?:^|/)psi-raw/[^/]+\.json$''']
 
 [[allowlists]]
+description = "amp-home build manifest (AMP card 1201, 2026-10-18): __ai-ready/pages.meta.json maps page paths to 16-hex content hashes; generic-api-key fired on a blog slug containing 'key' next to its hash. Path plus rule scoped, so any other rule (sk-ant-, JWTs, passwords) still fires in this file"
+targetRules = ["generic-api-key"]
+paths = ['''(?:^|/)__ai-ready/pages\.meta\.json$''']
+
+[[allowlists]]
 description = "Odoo attachment share token inside a product-image URL (public by design)"
 targetRules = ["generic-api-key"]
 regexTarget = "line"
